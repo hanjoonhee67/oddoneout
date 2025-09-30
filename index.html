@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gideon+Roman&family=Ibarra+Real+Nova:ital,wght@0,400..700;1,400..700&family=Noto+Sans+KR:wght@100..900&family=Poiret+One&family=Single+Day&family=Stalinist+One&family=Sunflower:wght@300&family=Turret+Road:wght@200;300;400;500;700;800&display=swap" rel="stylesheet">
+
+  <meta charset="UTF-8">
+  <title>틀린 그림 찾기</title>
+  <style>
+    body { text-align:center; font-family:sans-serif; position:relative; }
+    h1 { margin-bottom:20px; }
+
+    .stalinist-one-regular {
+  font-family: "Stalinist One", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+    .game {
+      display:flex;
+      justify-content:center;
+      gap:20px;
+    }
+    .panel {
+      position:relative;
+      display:inline-block;
+    }
+    .panel img {
+      width:800px;
+      border:2px solid #ccc;
+    }
+    .mark {
+      position:absolute;
+      width:50px; height:50px;
+      border:4px solid red;
+      border-radius:50%;
+      pointer-events:none;
+    }
+        .person {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2000px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+        
+    #result { margin-top:20px; font-size:20px; }
+    #timer { font-size:22px; font-weight:bold; color:darkred; margin-top:10px; }
+    #clearMessage {
+      display:none;
+      position:fixed;
+      top:50%; left:50%;
+      transform:translate(-50%, -50%);
+      font-size:100px;
+      font-weight:bold;
+      color:#00FF26;
+      background:rgba(255,255,255,0.9);
+      padding:20px 40px;
+      box-shadow:0 0 20px rgba(0,0,0,0.3);
+      z-index:1000;
+    }
+
+    .star {
+    position: fixed;
+    width: 25px;
+    height: 25px;
+    pointer-events: none;
+    animation: fall 1s forwards;
+  }
+
+  @keyframes fall {
+    0%   { transform: translateY(0) scale(1); opacity:1; }
+    100% { transform: translateY(60px) scale(0); opacity:0; }
+  }
+  </style>
+</head>
+<body>
+  <h1 class="stalinist-one-regular">Odd One Out</h1>
+  <div id="timer">남은 시간: 40초</div>
+
+  <div class="game">
+    <div class="panel">
+      <p><b class="stalinist-one-regular">ORIGINAL</b></p>
+      <img src="picture.png" alt="원본 그림">
+    </div>
+
+    <img src="woman.png" id="person" alt="사람" class="person">
+
+    <div class="panel" id="playArea">
+      <p><b class="stalinist-one-regular">TARGET</b></p>
+      <img src="picture2.png" id="target" alt="틀린 그림">
+    </div>
+  </div>
+
+  <div id="result"></div>
+  <div class="stalinist-one-regular" id="clearMessage">CLEAR!</div>
+
+  
+  <audio id="bgMusic" loop>
+    <source src="clock.wav" type="audio/wav">
+  </audio>
+
+  
+  <audio id="clearSound">
+    <source src="hooray.wav" type="audio/wav">
+  </audio>
+
+<script>
+const yOffset = 30;
+
+let answers = [
+  {x:174, y:472 + yOffset},
+  {x:512, y:214 + yOffset},
+  {x:603, y:667 + yOffset},
+  {x:214, y:582 + yOffset},
+  {x:1024, y:407 + yOffset},
+  {x:1078, y:482 + yOffset},
+  {x:808, y:547 + yOffset}
+];
+
+const target = document.getElementById("target");
+const playArea = document.getElementById("playArea");
+const bgMusic = document.getElementById("bgMusic");
+const clearSound = document.getElementById("clearSound");
+let timeLeft = 40;
+let gameOver = false;
+let foundAnswers = [];
+
+
+bgMusic.play().catch(err => {
+  console.log("자동 재생 제한으로 클릭 후 재생됩니다.");
+  
+  document.body.addEventListener('click', function playOnce() {
+    bgMusic.play();
+    document.body.removeEventListener('click', playOnce);
+  }, { once: true });
+});
+
+
+let timer = setInterval(()=>{
+  if(timeLeft > 0){
+    timeLeft--;
+    document.getElementById("timer").textContent = "남은 시간: " + timeLeft + "초";
+  } else {
+    clearInterval(timer);
+    gameOver = true;
+    bgMusic.pause(); 
+    document.getElementById("result").textContent = "GAME OVER";
+  }
+},1000);
+
+
+target.addEventListener("click", function(e){
+  if(gameOver) return;
+
+  let rect = target.getBoundingClientRect();
+  let scaleX = target.naturalWidth / target.width;
+  let scaleY = target.naturalHeight / target.height;
+  let x = (e.offsetX * scaleX);
+  let y = (e.offsetY * scaleY);
+
+  let found = answers.find((a, index) => 
+    !foundAnswers.includes(index) &&
+    x > a.x-90 && x < a.x+90 &&
+    y > a.y-90 && y < a.y+90
+  );
+
+  if(found){
+    let index = answers.indexOf(found);
+    foundAnswers.push(index);
+
+    let mark = document.createElement("div");
+    mark.className = "mark";
+    mark.style.left = (e.offsetX - 25) + "px";
+    mark.style.top  = (e.offsetY - 25 + yOffset) + "px";
+    playArea.appendChild(mark);
+
+    document.getElementById("result").textContent = "정답!("+foundAnswers.length+"/"+answers.length+")";
+
+    if(foundAnswers.length === answers.length){
+      clearInterval(timer);
+      gameOver = true;
+      bgMusic.pause(); 
+      clearSound.play(); 
+      document.getElementById("clearMessage").style.display = "block";
+    }
+  } else {
+    document.getElementById("result").textContent = "여긴 아니야";
+  }
+});
+
+document.addEventListener("mousemove", (e) => {
+  const star = document.createElement("img");
+  star.src = "star.png";
+  star.className = "star";
+
+  star.style.left = e.clientX + "px";
+  star.style.top = e.clientY + "px";
+
+  document.body.appendChild(star);
+
+  setTimeout(() => {
+    star.remove();
+  }, 1000);
+});
+</script>
+</body>
+</html>
